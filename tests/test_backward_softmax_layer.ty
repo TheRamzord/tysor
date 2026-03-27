@@ -1,0 +1,8 @@
+layer model(x: tensor[float16]): tensor[float16]:
+  y = x -> Softmax()
+  return y
+
+train model:
+  optimizer = "sgd"
+  lr = 0.1
+  objective = y

@@ -1,0 +1,19 @@
+layer model(idx: tensor[float16], target: tensor[float16]): tensor[float16]:
+  tok = Embedding(32, 8)
+  out_proj = linear(16, 3, false)
+
+  x = tok(idx)
+  x = rms_norm(x, 8)
+  x = reshape(x, 1, 2, 4)
+  x = rope(x, 4, 10000.0)
+  x = repeat_kv(x, 2)
+  x = flatten_heads(x)
+  logits = x -> out_proj()
+  loss = cross_entropy(logits, target)
+  return loss
+
+train model:
+  optimizer = "sgd"
+  lr = 0.1
+  iteration = 3
+  objective = loss

@@ -1,0 +1,12 @@
+layer model(x: tensor[float16], w: tensor[float16]): tensor[float16]:
+  y = matmul(x, w)
+  z = relu(y)
+  return z
+
+layer Project(x: tensor[float16]): tensor[float16]:
+  proj = linear(128, 128)
+  return proj(x)
+
+layer ProjectBias(x: tensor[float16]): tensor[float16]:
+  proj = linear(128, 128, true)
+  return proj(x)

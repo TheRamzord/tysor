@@ -1,0 +1,3 @@
+layer model(x: tensor[float16]): tensor[float16]:
+  drop = Dropout(0.25)
+  return x -> drop()

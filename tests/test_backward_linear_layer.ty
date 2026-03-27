@@ -1,0 +1,9 @@
+layer model(x: tensor[float16]): tensor[float16]:
+  proj = linear(3, 2, false)
+  y = proj(x)
+  return y
+
+train model:
+  optimizer = "sgd"
+  lr = 0.1
+  objective = y

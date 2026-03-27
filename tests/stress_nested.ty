@@ -1,0 +1,6 @@
+layer NestedTest(x):
+  val = (x -> transform()) if (x -> is_ready()) else (x -> initialize() -> transform())
+  return process(
+    input: x -> preprocess(),
+    buffer: x -> create_buffer() -> clear()
+  )

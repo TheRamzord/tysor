@@ -1,0 +1,10 @@
+layer model(x: tensor[float16], y: tensor[float16], w: tensor[float16]): tensor[float16]:
+  prod = x * y
+  logits = matmul(prod, w)
+  loss = relu(scale(logits, 0.5))
+  return loss
+
+train model:
+  optimizer = "sgd"
+  lr = 0.1
+  objective = loss

@@ -1,0 +1,11 @@
+fn get_stats() : (int, float):
+    return 10, 0.5
+
+fn use_tuple(x: (int, float)): int:
+    return 1
+
+layer multi_out(x: tensor): (tensor, tensor):
+    return x, x
+
+res: (int, float) = get_stats()
+y: (tensor, tensor) = multi_out(0)

@@ -1,0 +1,75 @@
+# ── llama_config.ration ─────────────────────────────────────────────────────────────
+
+config llama_config:
+  vocab_size   : int   = 32000
+  hidden_dim   : int   = 4096
+  n_layers     : int   = 32
+  n_heads      : int   = 32
+  n_kv_heads   : int   = 8
+  intermediate : int   = 11008
+  max_seq_len  : int   = 4096
+  rope_theta   : float = 10000.0
+  dropout      : float = 0.0
+
+# ── Layers ────────────────────────────────────────────────────────────────────
+
+layer RMSNorm(x: tensor): tensor:
+  return x -> rms_norm(llama_config.hidden_dim)
+
+layer RotaryEmbedding(x: tensor): tensor: 
+  return x -> rope(llama_config.max_seq_len, llama_config.rope_theta)
+
+layer GroupedQueryAttention(x: tensor): tensor:
+  q_proj = linear(llama_config.hidden_dim, llama_config.hidden_dim)
+  k_proj = linear(llama_config.hidden_dim, llama_config.n_kv_heads * config.head_dim)
+  v_proj = linear(llama_config.hidden_dim, llama_config.n_kv_heads * config.head_dim)
+  o_proj = linear(llama_config.hidden_dim, llama_config.hidden_dim)
+
+  q = x -> q_proj() -> reshape(heads: llama_config.n_heads) -> RotaryEmbedding()
+  k = x -> k_proj() -> reshape(heads: llama_config.n_kv_heads) -> RotaryEmbedding()
+  v = x -> v_proj() -> reshape(heads: llama_config.n_kv_heads)
+
+
+  k = k -> repeat_kv(llama_config.n_heads / llama_config.n_kv_heads)
+  v = v -> repeat_kv(llama_config.n_heads / llama_config.n_kv_heads)
+
+  # attn = Dropout(Softmax(causal_mask(scale(q * k))))
+  
+  attn = q * k -> scale(llama_config.hidden_dim, llama_config.n_heads)
+               -> causal_mask()
+               -> Softmax()
+               -> Dropout(llama_config.dropout)
+
+  return attn * v -> flatten_heads() -> o_proj()
+
+layer SwiGLU(x: tensor): tensor:
+  gate_proj = linear(llama_config.hidden_dim, llama_config.intermediate)
+  up_proj   = linear(llama_config.hidden_dim, llama_config.intermediate)
+  down_proj = linear(llama_config.intermediate, llama_config.hidden_dim)
+
+  gate = x -> gate_proj() -> SiLU()
+  up   = x -> up_proj()
+
+  return gate * up -> down_proj()
+
+layer DecoderBlock(x: tensor): tensor:
+  x = x + (x -> RMSNorm() -> GroupedQueryAttention())
+  return x + (x -> RMSNorm() -> SwiGLU())
+
+# ── Model ─────────────────────────────────────────────────────────────────────
+
+layer model(idx, targets=None): (tensor, tensor):
+  # logits = linear(RMSNorm(DecoderBlock(Dropout(Embedding(idx))))) here DecoderBlock * llama_config.n_layers is basically
+  # that DecoderBlock how DecoderBlock block the computation go through.
+  logits = idx -> Embedding(llama_config.vocab_size, llama_config.hidden_dim)
+               -> Dropout(llama_config.dropout)
+               -> DecoderBlock()[llama_config.n_layers] 
+               -> RMSNorm()
+               -> linear(llama_config.hidden_dim, llama_config.vocab_size)
+
+  loss = cross_entropy(logits, targets) if targets else None
+  return logits, loss
+
+train model:
+  epochs    = 36
+  scheduler = cosine(warmup: 100)

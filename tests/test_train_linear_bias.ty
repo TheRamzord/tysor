@@ -1,0 +1,11 @@
+layer model(x: tensor[float16], target: tensor[float16]): tensor[float16]:
+  proj = linear(3, 3, true)
+  logits = x -> proj()
+  loss = cross_entropy(logits, target)
+  return loss
+
+train model:
+  optimizer = "sgd"
+  lr = 0.05
+  iteration = 3
+  objective = loss

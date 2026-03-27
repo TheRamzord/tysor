@@ -1,0 +1,4 @@
+layer model(x: tensor[float16]): tensor[float16]:
+  hidden = linear(3, 4)
+  out = linear(4, 2, false)
+  return x -> hidden() -> relu() -> out()

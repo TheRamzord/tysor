@@ -1,0 +1,9 @@
+layer model(x, targets):
+  logits = x
+  loss = x
+  return logits, loss
+
+train model:
+  optimizer = "adam"
+  lr = 0.001
+  objective = loss

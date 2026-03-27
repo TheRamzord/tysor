@@ -1,0 +1,5 @@
+fn complex_type(x: (tensor, (int, float))): (bool, (int, int)):
+    return (true, (0, 0))
+
+# Nested tuple variable declaration
+v: (int, (int, (int, int))) = 1, (2, (3, 4))

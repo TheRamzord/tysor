@@ -1,0 +1,4 @@
+layer Assign(x):
+  y = x
+  z : int = 10
+  return y + z

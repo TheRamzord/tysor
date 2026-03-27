@@ -1,0 +1,2 @@
+layer model(logits: tensor[float16], target: tensor[float16]): tensor[float16]:
+  return cross_entropy(logits, target)

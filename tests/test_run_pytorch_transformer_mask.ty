@@ -1,0 +1,13 @@
+layer model(idx: tensor[float16]): tensor[float16]:
+  tok = Embedding(32, 8)
+  out_proj = linear(16, 3, false)
+
+  x = tok(idx)
+  x = rms_norm(x, 8)
+  x = reshape(x, 1, 2, 4)
+  x = rope(x, 4, 10000.0)
+  x = repeat_kv(x, 2)
+  x = causal_mask(x)
+  x = flatten_heads(x)
+  logits = x -> out_proj()
+  return logits

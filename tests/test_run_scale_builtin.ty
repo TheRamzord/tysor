@@ -1,0 +1,4 @@
+layer model(x: tensor[float16]): tensor[float16]:
+  y = scale(x, 2.0)
+  z = relu(y)
+  return scale(z, 0.5)

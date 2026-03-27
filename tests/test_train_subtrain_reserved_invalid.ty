@@ -1,0 +1,5 @@
+layer model(loss: tensor[float16]): tensor[float16]:
+  return loss
+
+train model:
+  subtrain = exp2

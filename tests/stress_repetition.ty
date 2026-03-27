@@ -1,0 +1,8 @@
+config settings:
+  depth: int = 12
+
+layer Block(x):
+  return x -> inner()
+
+layer ComplexModel(idx):
+  return idx -> Embedding() -> Block() * settings.depth -> Final()

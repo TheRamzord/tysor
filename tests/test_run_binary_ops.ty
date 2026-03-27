@@ -1,0 +1,6 @@
+layer model(x: tensor[float16], y: tensor[float16]): tensor[float16]:
+  sum = x + y
+  diff = sum - y
+  scaled = diff * 2.0
+  shifted = 1.0 + scaled
+  return shifted / 2.0

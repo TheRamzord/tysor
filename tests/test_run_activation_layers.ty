@@ -1,0 +1,2 @@
+layer model(x: tensor[float16]): tensor[float16]:
+  return x -> SiLU() -> Softmax()

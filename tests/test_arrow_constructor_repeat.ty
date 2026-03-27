@@ -1,0 +1,9 @@
+layer ProjectDirect(x: tensor[float16]): tensor[float16]:
+  return x -> linear(128, 128)
+
+layer RepeatRelu(x: tensor[float16]): tensor[float16]:
+  return x -> relu()[2] * 2
+
+layer RepeatLocal(x: tensor[float16]): tensor[float16]:
+  proj = linear(128, 128)
+  return x -> proj()[2]

@@ -1,0 +1,5 @@
+fn helper(x: tensor[float16]): tensor[float16]:
+  return x -> relu()
+
+layer model(x: tensor[float16]): tensor[float16]:
+  return helper(x)

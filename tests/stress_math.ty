@@ -1,0 +1,4 @@
+layer MathTest(a, b, c):
+  result = (a + b) * c -> normalize() -> scale(2.0)
+  logic = a > b && b < c -> check_bounds() -> alert()
+  return result + logic

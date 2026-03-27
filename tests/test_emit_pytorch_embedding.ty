@@ -1,0 +1,3 @@
+layer model(idx: tensor[float16]): tensor[float16]:
+  tok = Embedding(32, 8)
+  return tok(idx)

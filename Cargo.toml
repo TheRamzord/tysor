@@ -1,0 +1,12 @@
+[package]
+name = "tysor"
+version = "0.1.0"
+edition = "2021"
+build = "build.rs"
+
+[[bin]]
+name = "run_tests"
+path = "src/bin/run_tests.rs"
+
+[dependencies]
+regex = "1"

@@ -1,0 +1,3 @@
+layer model(x: tensor[float16]): tensor[float16]:
+  proj = linear(3, 2, true)
+  return proj(x)

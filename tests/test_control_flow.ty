@@ -1,0 +1,16 @@
+layer Logic(x):
+  if x > 0:
+    return 1
+  elif x == 0:
+    return 0
+  else:
+    return -1
+
+layer Nested(x, y):
+  if x:
+    if y:
+      return 2
+    else:
+      return 1
+  else:
+    return 0

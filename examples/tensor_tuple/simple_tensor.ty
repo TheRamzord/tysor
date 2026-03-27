@@ -1,0 +1,8 @@
+layer simple_layer(x: tensor): tensor:
+    return x * 2.0
+
+fn process(x: tensor) : tensor:
+    return x -> simple_layer()
+
+a: tensor = 0
+b: tensor = process(a)

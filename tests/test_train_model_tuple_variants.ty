@@ -1,0 +1,8 @@
+layer model(loss: tensor[float16]): tensor[float16]:
+  return loss
+
+train model:
+  optimizer = adam
+  lr = (1e-4, 5e-4, 1e-3)
+  objective = loss
+  iteration = 5

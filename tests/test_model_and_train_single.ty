@@ -1,0 +1,7 @@
+layer model(x):
+  return x
+
+train model:
+  optimizer = "adam"
+  lr = 0.001
+  objective = x

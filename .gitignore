@@ -1,0 +1,55 @@
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Rust and Cargo
+/target/
+**/*.rs.bk
+
+# Native and generic build outputs
+/build/
+/cmake-build-*/
+/out/
+/dist/
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+
+# CMake and compile database outputs
+/CMakeCache.txt
+/CMakeFiles/
+/cmake_install.cmake
+/compile_commands.json
+/Makefile
+/Testing/
+
+# Python caches and virtual environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+
+# Logs and local runtime output
+*.log
+*.out
+*.err
+
+# Editors and IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Environment and local machine overrides
+.env
+.env.*
+.python-version

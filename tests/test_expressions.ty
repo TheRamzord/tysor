@@ -1,0 +1,12 @@
+layer Math(x, y, z):
+  # Precedence test
+  a = x + y * z / (x - y)
+  
+  # Logic and Unary
+  # Note: we added unary minus (-) support
+  b = !true && (x < -y || x == z)
+  
+  # Ternary
+  res = a if b else c
+  
+  return res

@@ -1,0 +1,12 @@
+layer model(x: tensor[float16], target: tensor[float16]): tensor[float16]:
+  hidden = linear(3, 4, false)
+  out = linear(4, 3, false)
+  logits = x -> hidden() -> relu() -> out()
+  loss = cross_entropy(logits, target)
+  return loss
+
+train model:
+  optimizer = "sgd"
+  lr = 0.05
+  iteration = 3
+  objective = loss

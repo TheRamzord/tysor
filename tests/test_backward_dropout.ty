@@ -1,0 +1,9 @@
+layer model(x: tensor[float16]): tensor[float16]:
+  drop = Dropout(0.25)
+  y = x -> drop()
+  return y
+
+train model:
+  optimizer = "sgd"
+  lr = 0.1
+  objective = y

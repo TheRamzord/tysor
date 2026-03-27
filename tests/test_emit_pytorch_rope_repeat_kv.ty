@@ -1,0 +1,4 @@
+layer model(x: tensor[float16]): tensor[float16]:
+  y = rope(x, 8, 10000.0)
+  z = repeat_kv(y, 2)
+  return z

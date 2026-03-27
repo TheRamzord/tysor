@@ -1,0 +1,10 @@
+config model_params:
+  dim : int = 512
+  n_heads : int = 8
+  use_bias : bool = true
+  learning_rate : float = 0.001
+
+train gpt:
+  batch_size = 32
+  optim = "adam"
+  weight_decay = 0.01

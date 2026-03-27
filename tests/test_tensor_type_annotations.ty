@@ -1,0 +1,2 @@
+layer model(x: tensor[float16, TransformerDims[:2]]): tensor[float16, TransformerDims[:2]]:
+  return x
