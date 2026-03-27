@@ -32,6 +32,7 @@ Rules:
 - `fn` may not call `layer`
 - `fn` does not introduce tracked parameter-owning state
 - tensor computation inside `fn` may still participate in a larger model computation
+- fn can use '->' operator but rhs of this operators should be function.
 
 ## `config`
 

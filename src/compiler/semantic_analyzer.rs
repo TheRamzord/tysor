@@ -507,15 +507,9 @@ impl SemanticAnalyzer {
         &mut self,
         source: &Expr,
         stages: &[Expr],
-        span: &SourceSpan,
+        _span: &SourceSpan,
         program: &Program,
     ) -> Result<Type, String> {
-        if self.current_callable_kind == CallableKind::Function {
-            return Err(self.error_span(
-                span,
-                "The '->' operator is only allowed inside layer bodies; fn must use explicit calls",
-            ));
-        }
         let mut current = self.analyze_expr(source, program)?;
         for stage in stages {
             current = self.analyze_stage(stage, &current, program)?;
@@ -666,6 +660,15 @@ impl SemanticAnalyzer {
 
         if let Some(sig) = self.functions.get(callee).cloned() {
             let stage_type = if sig.return_type.base == TypeBase::Callable {
+                if self.current_callable_kind == CallableKind::Function {
+                    return Err(self.error_span(
+                        span,
+                        &format!(
+                            "Arrow stage '{}' resolves to a callable/layer-like stage and cannot be used inside fn; fn arrow stages must stay function-only",
+                            callee
+                        ),
+                    ));
+                }
                 let mut ctor_arg_types = Vec::new();
                 for arg in args {
                     ctor_arg_types.push(self.analyze_expr(&arg.value, program)?);
@@ -702,6 +705,15 @@ impl SemanticAnalyzer {
         if let Some(var) = self.find_var(callee) {
             if !var.ty.is_callable() {
                 return Err(self.error_span(span, &format!("Arrow stage '{}' is not callable", callee)));
+            }
+            if self.current_callable_kind == CallableKind::Function {
+                return Err(self.error_span(
+                    span,
+                    &format!(
+                        "Arrow stage '{}' is a callable/layer value and cannot be used inside fn; fn arrow stages must stay function-only",
+                        callee
+                    ),
+                ));
             }
             return self.unwrap_callable_stage(var.ty.clone(), input_type);
         }

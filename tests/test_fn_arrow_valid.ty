@@ -1,6 +1,5 @@
 fn helper(x: tensor[float16]): tensor[float16]:
-  proj = linear(8)
-  return x -> proj()
+  return x -> relu()
 
 layer model(x: tensor[float16]): tensor[float16]:
   return helper(x)
