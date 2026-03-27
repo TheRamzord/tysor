@@ -4,6 +4,7 @@
 //! parameter-gradient accumulation and SGD update step stay in one Rust implementation.
 
 use crate::backend::core::kind::BackendKind;
+use crate::backend::cuda::runtime::execute_cuda_module;
 use crate::backend::metal::runtime::execute_metal_module;
 use crate::backend::pytorch::runtime::execute_pytorch_module;
 use crate::compiler::frontend_ir::{FeValue, LoweredModule};
@@ -525,6 +526,27 @@ fn execute_train_graph_metal(
     Ok(TrainExecutionResult { values })
 }
 
+fn execute_train_graph_cuda(
+    lowered: &LoweredModule,
+    graph: &GraphFunction,
+    options: &TrainRunOptions,
+    parameters: &mut BTreeMap<String, SimpleTensor>,
+) -> Result<TrainExecutionResult, String> {
+    initialize_train_parameters(graph, options, parameters)?;
+    let runtime_options = RuntimeRunOptions {
+        entry: options.entry.clone(),
+        tensor_shapes: options.tensor_shapes.clone(),
+    };
+    let execution = execute_cuda_module(lowered, &runtime_options, Some(parameters))?;
+    let mut values = execution
+        .values
+        .iter()
+        .map(|(id, value)| (*id, convert_graph_runtime_value(value)))
+        .collect::<BTreeMap<_, _>>();
+    materialize_ctor_values(graph, &mut values)?;
+    Ok(TrainExecutionResult { values })
+}
+
 fn resolve_objective_value_id(
     run: &crate::compiler::frontend_ir::FeExecutionRun,
     graph: &GraphFunction,
@@ -763,10 +785,11 @@ fn apply_sgd(
 
 pub fn run_train_module(lowered: &LoweredModule, options: &TrainRunOptions) -> Result<(), String> {
     if options.backend != BackendKind::Local
+        && options.backend != BackendKind::Cuda
         && options.backend != BackendKind::PyTorch
         && options.backend != BackendKind::Metal
     {
-        return Err("Rust train executor currently supports only the local, Metal, and PyTorch backends".to_string());
+        return Err("Rust train executor currently supports only the local, CUDA, Metal, and PyTorch backends".to_string());
     }
 
     let entry = find_entry_function(lowered, &options.entry)?;
@@ -797,6 +820,7 @@ pub fn run_train_module(lowered: &LoweredModule, options: &TrainRunOptions) -> R
         // Only the forward pass varies by backend. Gradient accumulation and SGD stay shared.
         let execution = match options.backend {
             BackendKind::Local => execute_train_graph(&graph, options, &mut parameters)?,
+            BackendKind::Cuda => execute_train_graph_cuda(lowered, &graph, options, &mut parameters)?,
             BackendKind::PyTorch => execute_train_graph_pytorch(lowered, &graph, options, &mut parameters)?,
             BackendKind::Metal => execute_train_graph_metal(lowered, &graph, options, &mut parameters)?,
         };

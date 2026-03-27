@@ -10,6 +10,7 @@ the Metal bridge.
 - runs semantic analysis
 - lowers programs into a frontend IR and graph form
 - executes supported programs on the local backend
+- includes a scaffolded CUDA backend slot for future Linux/NVIDIA validation
 - executes supported programs on the Metal backend
 - exports and runs supported programs through the PyTorch backend
 - supports backward execution and small-model training for the current subset
@@ -68,7 +69,8 @@ cargo run -- tests/test_train_small_mlp.ty --train --shape x=2x3 --shape target=
 cargo run -- tests/test_train_small_mlp.ty --train --backend pytorch --shape x=2x3 --shape target=2x3
 ```
 
-`--run` defaults to `local`. Supported backends are `local`, `metal`, and `pytorch`.
+`--run` defaults to `local`. Supported backend names are `local`, `cuda`, `metal`, and `pytorch`.
+The current CUDA backend is scaffolded but not yet implemented on this macOS host.
 
 ## Tests
 

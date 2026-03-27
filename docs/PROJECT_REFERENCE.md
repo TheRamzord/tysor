@@ -18,6 +18,7 @@ This document is the quick operational reference for working in the repository.
 - `src/compiler/`: lexer, parser, semantic analysis, frontend lowering
 - `src/ir/`: graph construction
 - `src/backend/core/`: backend kinds and execution-plan lowering
+- `src/backend/cuda/`: CUDA backend scaffold and future runtime/codegen slot
 - `src/backend/local.rs`: local backend entrypoints
 - `src/backend/metal/`: Metal codegen and runtime integration
 - `src/backend/pytorch/`: PyTorch export and runtime integration
@@ -113,10 +114,13 @@ cargo run --bin run_tests -- --train test_train_small_mlp.ty test_train_silu_mlp
 Supported backends:
 
 - `local`
+- `cuda`
 - `metal`
 - `pytorch`
 
 `local` is the default. Backend parsing lives in `src/backend/core/kind.rs`.
+The current CUDA backend is scaffolded only and returns an unsupported-host/build error until it
+is implemented and validated on a CUDA-capable machine.
 
 ## Related Docs
 

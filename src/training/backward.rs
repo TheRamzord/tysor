@@ -1,4 +1,5 @@
 use crate::backend::core::kind::BackendKind;
+use crate::backend::cuda::runtime::execute_cuda_module;
 use crate::backend::metal::runtime::execute_metal_module;
 use crate::backend::pytorch::runtime::execute_pytorch_module;
 use crate::compiler::frontend_ir::LoweredModule;
@@ -156,6 +157,14 @@ pub(crate) fn compute_value_gradients(
             &GraphExecutorOptions {
                 tensor_shapes: tensor_shapes.clone(),
             },
+        )?,
+        BackendKind::Cuda => execute_cuda_module(
+            lowered,
+            &RuntimeRunOptions {
+                entry: entry.to_string(),
+                tensor_shapes: tensor_shapes.clone(),
+            },
+            None,
         )?,
         BackendKind::Metal => execute_metal_module(
             lowered,

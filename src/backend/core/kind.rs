@@ -5,6 +5,7 @@ use std::str::FromStr;
 pub enum BackendKind {
     #[default]
     Local,
+    Cuda,
     Metal,
     PyTorch,
 }
@@ -13,6 +14,7 @@ impl BackendKind {
     pub fn as_str(self) -> &'static str {
         match self {
             BackendKind::Local => "local",
+            BackendKind::Cuda => "cuda",
             BackendKind::Metal => "metal",
             BackendKind::PyTorch => "pytorch",
         }
@@ -31,6 +33,7 @@ impl FromStr for BackendKind {
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value {
             "local" => Ok(BackendKind::Local),
+            "cuda" => Ok(BackendKind::Cuda),
             "metal" => Ok(BackendKind::Metal),
             "pytorch" => Ok(BackendKind::PyTorch),
             other => Err(format!("unsupported backend '{other}'")),

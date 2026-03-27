@@ -232,9 +232,79 @@ pub fn compile_metal_execution_plan(graph: &GraphFunction) -> ExecutionPlan {
     plan
 }
 
+pub fn compile_cuda_execution_plan(graph: &GraphFunction) -> ExecutionPlan {
+    let mut plan = make_base_plan(graph, BackendKind::Cuda);
+    for value in &graph.values {
+        let placement = if value.ty.kind == crate::compiler::frontend_ir::FeTypeKind::Tensor && !value.is_parameter {
+            Placement::Device
+        } else {
+            Placement::Host
+        };
+        plan.values.push(lower_plan_value(value, placement));
+    }
+
+    for value in &plan.values {
+        match value.placement {
+            Placement::Host => {
+                plan.steps.push(PlanStep {
+                    kind: PlanStepKind::AllocateHostValue,
+                    value_id: value.id,
+                    op_index: None,
+                });
+                if value.is_parameter {
+                    plan.steps.push(PlanStep {
+                        kind: PlanStepKind::UploadToDevice,
+                        value_id: value.id,
+                        op_index: None,
+                    });
+                }
+            }
+            Placement::Device => {
+                plan.steps.push(PlanStep {
+                    kind: PlanStepKind::AllocateDeviceValue,
+                    value_id: value.id,
+                    op_index: None,
+                });
+            }
+        }
+    }
+
+    for node in &graph.nodes {
+        plan.ops.push(PlanOp {
+            kind: lower_plan_kind(node.kind),
+            output: node.output,
+            op: node.op.clone(),
+            binary_op: node.binary_op,
+            constant: node.constant.clone(),
+            inputs: node.inputs.clone(),
+            backend: BackendKind::Cuda,
+        });
+        plan.steps.push(PlanStep {
+            kind: PlanStepKind::DispatchDeviceOp,
+            value_id: node.output,
+            op_index: Some(plan.ops.len() - 1),
+        });
+    }
+
+    for output in &plan.outputs {
+        plan.steps.push(PlanStep {
+            kind: PlanStepKind::DownloadToHost,
+            value_id: *output,
+            op_index: None,
+        });
+        plan.steps.push(PlanStep {
+            kind: PlanStepKind::MaterializeOutput,
+            value_id: *output,
+            op_index: None,
+        });
+    }
+    plan
+}
+
 pub fn compile_execution_plan(graph: &GraphFunction, backend: BackendKind) -> ExecutionPlan {
     match backend {
         BackendKind::Local => compile_local_execution_plan(graph),
+        BackendKind::Cuda => compile_cuda_execution_plan(graph),
         BackendKind::Metal => compile_metal_execution_plan(graph),
         BackendKind::PyTorch => compile_local_execution_plan(graph),
     }

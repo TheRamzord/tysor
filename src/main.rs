@@ -1,8 +1,9 @@
 use std::env;
 use std::fs;
-use std::path::PathBuf;
 use std::collections::BTreeMap;
+use std::path::PathBuf;
 
+use tysor::backend::cuda::runtime::{run_cuda_module, run_cuda_train_module};
 use tysor::backend::local::{run_local_backward_module, run_local_forward_module, run_local_train_module};
 use tysor::backend::metal::runtime::run_metal_module;
 use tysor::backend::pytorch::runtime::{run_pytorch_forward_module, run_pytorch_train_module};
@@ -42,7 +43,7 @@ struct CliOptions {
 }
 
 fn usage() -> &'static str {
-    "tysor <input.ty> [--emit-metal] [--emit-pytorch] [--run] [--backward] [--train] [--tokens] [--ast] [--semantics] [--ir] [--print-pipeline] [--entry <name>] [--backend <local|metal|pytorch>]"
+    "tysor <input.ty> [--emit-metal] [--emit-pytorch] [--run] [--backward] [--train] [--tokens] [--ast] [--semantics] [--ir] [--print-pipeline] [--entry <name>] [--backend <local|cuda|metal|pytorch>]"
 }
 
 fn parse_cli() -> Result<CliOptions, String> {
@@ -273,6 +274,7 @@ fn main() {
                 };
                 let result = match options.backend {
                     BackendKind::Local => run_local_forward_module(&lowered, &runtime_options),
+                    BackendKind::Cuda => run_cuda_module(&lowered, &runtime_options),
                     BackendKind::Metal => run_metal_module(&lowered, &runtime_options),
                     BackendKind::PyTorch => run_pytorch_forward_module(&lowered, &runtime_options),
                 };
@@ -303,6 +305,7 @@ fn main() {
                 };
                 let result = match options.backend {
                     BackendKind::Local | BackendKind::Metal => run_local_train_module(&lowered, &train_options),
+                    BackendKind::Cuda => run_cuda_train_module(&lowered, &train_options),
                     BackendKind::PyTorch => run_pytorch_train_module(&lowered, &train_options),
                 };
                 if let Err(err) = result {

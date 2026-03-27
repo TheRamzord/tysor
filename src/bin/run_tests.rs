@@ -85,6 +85,7 @@ const IR_END: &str = "---------------------------";
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Backend {
     Local,
+    Cuda,
     Metal,
     PyTorch,
 }
@@ -93,6 +94,7 @@ impl Backend {
     fn as_str(self) -> &'static str {
         match self {
             Self::Local => "local",
+            Self::Cuda => "cuda",
             Self::Metal => "metal",
             Self::PyTorch => "pytorch",
         }
@@ -152,6 +154,7 @@ fn default_tests_dir() -> PathBuf {
 fn parse_backend(value: &str) -> Result<Backend, String> {
     match value {
         "local" => Ok(Backend::Local),
+        "cuda" => Ok(Backend::Cuda),
         "metal" => Ok(Backend::Metal),
         "pytorch" => Ok(Backend::PyTorch),
         _ => Err(format!("unknown backend '{value}'")),
@@ -159,7 +162,7 @@ fn parse_backend(value: &str) -> Result<Backend, String> {
 }
 
 fn usage() -> &'static str {
-    "run_tests [files...] [--binary <path>] [--tests-dir <path>] [--file <file>] [--stress] [--emit-pytorch] [--run] [--backend <local|metal|pytorch>] [--compare-cpu] [--backward] [--train] [--show-output] [--tokens] [--ast] [--ir] [--semantics] [--fail-fast]"
+    "run_tests [files...] [--binary <path>] [--tests-dir <path>] [--file <file>] [--stress] [--emit-pytorch] [--run] [--backend <local|cuda|metal|pytorch>] [--compare-cpu] [--backward] [--train] [--show-output] [--tokens] [--ast] [--ir] [--semantics] [--fail-fast]"
 }
 
 fn parse_args() -> Result<Args, String> {
