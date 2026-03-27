@@ -33,6 +33,7 @@ pub struct FeType {
     pub kind: FeTypeKind,
     pub elements: Vec<FeType>,
     pub callable_return: Option<Box<FeType>>,
+    pub scalar_dtype: Option<String>,
     pub tensor_dtype: Option<String>,
     pub tensor_shape_expr: Option<String>,
     pub tensor_rank: Option<usize>,
@@ -48,6 +49,31 @@ impl FeType {
     pub fn int() -> Self {
         Self {
             kind: FeTypeKind::Int,
+            scalar_dtype: None,
+            ..Self::void()
+        }
+    }
+
+    pub fn int16() -> Self {
+        Self {
+            kind: FeTypeKind::Int,
+            scalar_dtype: Some("int16".to_string()),
+            ..Self::void()
+        }
+    }
+
+    pub fn int32() -> Self {
+        Self {
+            kind: FeTypeKind::Int,
+            scalar_dtype: Some("int32".to_string()),
+            ..Self::void()
+        }
+    }
+
+    pub fn int64() -> Self {
+        Self {
+            kind: FeTypeKind::Int,
+            scalar_dtype: Some("int64".to_string()),
             ..Self::void()
         }
     }
@@ -55,6 +81,31 @@ impl FeType {
     pub fn float() -> Self {
         Self {
             kind: FeTypeKind::Float,
+            scalar_dtype: None,
+            ..Self::void()
+        }
+    }
+
+    pub fn float16() -> Self {
+        Self {
+            kind: FeTypeKind::Float,
+            scalar_dtype: Some("float16".to_string()),
+            ..Self::void()
+        }
+    }
+
+    pub fn float32() -> Self {
+        Self {
+            kind: FeTypeKind::Float,
+            scalar_dtype: Some("float32".to_string()),
+            ..Self::void()
+        }
+    }
+
+    pub fn float64() -> Self {
+        Self {
+            kind: FeTypeKind::Float,
+            scalar_dtype: Some("float64".to_string()),
             ..Self::void()
         }
     }
@@ -81,6 +132,7 @@ impl FeType {
             kind: FeTypeKind::Void,
             elements: Vec::new(),
             callable_return: None,
+            scalar_dtype: None,
             tensor_dtype: None,
             tensor_shape_expr: None,
             tensor_rank: None,
@@ -505,7 +557,9 @@ impl<'a> FrontendLowerer<'a> {
                 let ty = if lhs.ty.kind == FeTypeKind::Tensor || rhs.ty.kind == FeTypeKind::Tensor {
                     self.merge_tensor_types(&lhs.ty, &rhs.ty)
                 } else if lhs.ty.kind == FeTypeKind::Float || rhs.ty.kind == FeTypeKind::Float {
-                    FeType::float()
+                    merge_float_types(&lhs.ty, &rhs.ty)
+                } else if lhs.ty.kind == FeTypeKind::Int || rhs.ty.kind == FeTypeKind::Int {
+                    merge_int_types(&lhs.ty, &rhs.ty)
                 } else if matches!(
                     op,
                     TokenType::EqEq
@@ -708,7 +762,11 @@ impl<'a> FrontendLowerer<'a> {
                 } else if lhs_expr.ty.kind == FeTypeKind::Float
                     || rhs_expr.ty.kind == FeTypeKind::Float
                 {
-                    FeType::float()
+                    merge_float_types(&lhs_expr.ty, &rhs_expr.ty)
+                } else if lhs_expr.ty.kind == FeTypeKind::Int
+                    || rhs_expr.ty.kind == FeTypeKind::Int
+                {
+                    merge_int_types(&lhs_expr.ty, &rhs_expr.ty)
                 } else if matches!(
                     op,
                     TokenType::EqEq
@@ -1460,8 +1518,18 @@ impl<'a> FrontendLowerer<'a> {
 
 pub fn lower_type(ty: &Type) -> FeType {
     match ty.base {
-        crate::compiler::parser::TypeBase::Int => FeType::int(),
-        crate::compiler::parser::TypeBase::Float => FeType::float(),
+        crate::compiler::parser::TypeBase::Int => match ty.scalar_dtype.as_deref() {
+            Some("int16") => FeType::int16(),
+            Some("int32") => FeType::int32(),
+            Some("int64") => FeType::int64(),
+            _ => FeType::int(),
+        },
+        crate::compiler::parser::TypeBase::Float => match ty.scalar_dtype.as_deref() {
+            Some("float16") => FeType::float16(),
+            Some("float32") => FeType::float32(),
+            Some("float64") => FeType::float64(),
+            _ => FeType::float(),
+        },
         crate::compiler::parser::TypeBase::Bool => FeType::bool(),
         crate::compiler::parser::TypeBase::Tensor => FeType::tensor(
             ty.tensor_dtype.clone(),
@@ -1478,6 +1546,38 @@ pub fn lower_type(ty: &Type) -> FeType {
                 .map(lower_type)
                 .unwrap_or_else(FeType::void),
         ),
+    }
+}
+
+fn merge_float_types(lhs: &FeType, rhs: &FeType) -> FeType {
+    let rank = |ty: &FeType| match ty.scalar_dtype.as_deref() {
+        Some("float64") => 3,
+        Some("float32") | None => 2,
+        Some("float16") => 1,
+        _ => 2,
+    };
+
+    match rank(lhs).max(rank(rhs)) {
+        3 => FeType::float64(),
+        1 => FeType::float16(),
+        _ if lhs.scalar_dtype.is_none() && rhs.scalar_dtype.is_none() => FeType::float(),
+        _ => FeType::float32(),
+    }
+}
+
+fn merge_int_types(lhs: &FeType, rhs: &FeType) -> FeType {
+    let rank = |ty: &FeType| match ty.scalar_dtype.as_deref() {
+        Some("int64") => 3,
+        Some("int32") | None => 2,
+        Some("int16") => 1,
+        _ => 2,
+    };
+
+    match rank(lhs).max(rank(rhs)) {
+        3 => FeType::int64(),
+        1 => FeType::int16(),
+        _ if lhs.scalar_dtype.is_none() && rhs.scalar_dtype.is_none() => FeType::int(),
+        _ => FeType::int32(),
     }
 }
 

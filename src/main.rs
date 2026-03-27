@@ -30,6 +30,10 @@ struct CliOptions {
     run: bool,
     backward: bool,
     train: bool,
+    tokens: bool,
+    ast: bool,
+    semantics: bool,
+    ir: bool,
     print_pipeline: bool,
     backend_overridden: bool,
     entry: String,
@@ -38,7 +42,7 @@ struct CliOptions {
 }
 
 fn usage() -> &'static str {
-    "tysor <input.ty> [--emit-metal] [--emit-pytorch] [--run] [--backward] [--train] [--print-pipeline] [--entry <name>] [--backend <local|metal|pytorch>]"
+    "tysor <input.ty> [--emit-metal] [--emit-pytorch] [--run] [--backward] [--train] [--tokens] [--ast] [--semantics] [--ir] [--print-pipeline] [--entry <name>] [--backend <local|metal|pytorch>]"
 }
 
 fn parse_cli() -> Result<CliOptions, String> {
@@ -56,6 +60,10 @@ fn parse_cli() -> Result<CliOptions, String> {
             "--run" => options.run = true,
             "--backward" => options.backward = true,
             "--train" => options.train = true,
+            "--tokens" => options.tokens = true,
+            "--ast" => options.ast = true,
+            "--semantics" => options.semantics = true,
+            "--ir" => options.ir = true,
             "--print-pipeline" => options.print_pipeline = true,
             "--entry" => {
                 options.entry = args.next().ok_or_else(|| "missing value for --entry".to_string())?;
@@ -111,6 +119,12 @@ fn parse_shape_spec(spec: &str) -> Result<(String, Vec<i64>), String> {
     Ok((name, dims))
 }
 
+fn print_section(title: &str, body: impl AsRef<str>, end_marker: &str) {
+    println!("{title}");
+    println!("{}", body.as_ref());
+    println!("{end_marker}");
+}
+
 fn main() {
     let options = match parse_cli() {
         Ok(options) => options,
@@ -139,16 +153,49 @@ fn main() {
     // source -> tokenize -> parse -> semantic analysis -> frontend lowering.
     match tokenize(&source).and_then(|tokens| {
         let token_count = tokens.len();
+        let token_dump = if options.tokens {
+            Some(
+                tokens
+                    .iter()
+                    .map(|token| token.to_string())
+                    .collect::<Vec<_>>()
+                    .join("\n"),
+            )
+        } else {
+            None
+        };
         let mut parser = Parser::new(tokens);
         parser.parse_program().and_then(|program| {
+            let ast_dump = if options.ast {
+                Some(format!("{program:#?}"))
+            } else {
+                None
+            };
             let mut analyzer = SemanticAnalyzer::new();
             analyzer.analyze(&program)?;
+            let semantics_dump = if options.semantics {
+                Some(format!(
+                    "ok\nconfigs={}\ntrains={}\nlayers={}\nfunctions={}\nglobals={}",
+                    program.configs.len(),
+                    program.trains.len(),
+                    program.layers.len(),
+                    program.functions.len(),
+                    program.globals.len()
+                ))
+            } else {
+                None
+            };
             let mut lowerer = FrontendLowerer::new(&program);
             let lowered = lowerer.lower()?;
-            Ok((token_count, program, lowered))
+            let ir_dump = if options.ir {
+                Some(format!("{lowered:#?}"))
+            } else {
+                None
+            };
+            Ok((token_count, program, lowered, token_dump, ast_dump, semantics_dump, ir_dump))
         })
     }) {
-        Ok((token_count, program, lowered)) => {
+        Ok((token_count, program, lowered, token_dump, ast_dump, semantics_dump, ir_dump)) => {
             println!("tokens={token_count}");
             println!(
                 "program=configs:{} trains:{} layers:{} functions:{} globals:{}",
@@ -166,6 +213,22 @@ fn main() {
                 lowered.globals.len(),
                 if lowered.execution_plan.is_some() { "yes" } else { "no" }
             );
+            if let Some(token_dump) = token_dump {
+                print_section("--- Tokenization Step ---", token_dump, "-------------------------");
+            }
+            if let Some(ast_dump) = ast_dump {
+                print_section("--- Parsing Step ---", ast_dump, "--------------------");
+            }
+            if let Some(semantics_dump) = semantics_dump {
+                print_section(
+                    "--- Semantic Analysis Step ---",
+                    semantics_dump,
+                    "------------------------------",
+                );
+            }
+            if let Some(ir_dump) = ir_dump {
+                print_section("--- Lowered Frontend IR ---", ir_dump, "---------------------------");
+            }
             if options.emit_metal {
                 // Metal emission starts from one lowered entry function and a Metal plan for it.
                 let entry = match lowered

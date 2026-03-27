@@ -1,9 +1,9 @@
 # Globals with types
-x : int = 5
-y : float = 3.14e-5
+x : int32 = 5
+y : float32 = 3.14e-5
 
 layer Buffer(x):
   # Local variables with types
-  count : int = 0
+  count : int32 = 0
   active : bool = false
   return x

@@ -1,4 +1,4 @@
 layer Assign(x):
   y = x
-  z : int = 10
+  z : int32 = 10
   return y + z

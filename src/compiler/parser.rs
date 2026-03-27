@@ -22,6 +22,7 @@ pub struct Type {
     pub base: TypeBase,
     pub elements: Vec<Type>,
     pub callable_return: Option<Box<Type>>,
+    pub scalar_dtype: Option<String>,
     pub tensor_dtype: Option<String>,
     pub tensor_shape_expr: Option<String>,
     pub tensor_rank: Option<usize>,
@@ -37,12 +38,56 @@ impl Type {
     pub fn int() -> Self {
         Self {
             base: TypeBase::Int,
+            scalar_dtype: None,
+            ..Self::void()
+        }
+    }
+    pub fn int16() -> Self {
+        Self {
+            base: TypeBase::Int,
+            scalar_dtype: Some("int16".to_string()),
+            ..Self::void()
+        }
+    }
+    pub fn int32() -> Self {
+        Self {
+            base: TypeBase::Int,
+            scalar_dtype: Some("int32".to_string()),
+            ..Self::void()
+        }
+    }
+    pub fn int64() -> Self {
+        Self {
+            base: TypeBase::Int,
+            scalar_dtype: Some("int64".to_string()),
+            ..Self::void()
+        }
+    }
+    pub fn float16() -> Self {
+        Self {
+            base: TypeBase::Float,
+            scalar_dtype: Some("float16".to_string()),
+            ..Self::void()
+        }
+    }
+    pub fn float32() -> Self {
+        Self {
+            base: TypeBase::Float,
+            scalar_dtype: Some("float32".to_string()),
+            ..Self::void()
+        }
+    }
+    pub fn float64() -> Self {
+        Self {
+            base: TypeBase::Float,
+            scalar_dtype: Some("float64".to_string()),
             ..Self::void()
         }
     }
     pub fn float() -> Self {
         Self {
             base: TypeBase::Float,
+            scalar_dtype: None,
             ..Self::void()
         }
     }
@@ -57,6 +102,7 @@ impl Type {
             base: TypeBase::Void,
             elements: Vec::new(),
             callable_return: None,
+            scalar_dtype: None,
             tensor_dtype: None,
             tensor_shape_expr: None,
             tensor_rank: None,
@@ -508,17 +554,47 @@ impl Parser {
     fn parse_type(&mut self) -> Result<Type, String> {
         let token = self.peek(0).cloned().ok_or_else(|| self.error_here("Expected type"))?;
         match token.kind {
-            TokenType::Int => {
-                self.consume();
-                Ok(Type::int())
-            }
+            TokenType::Int => Err(self.error_token(
+                "Use an explicit integer width such as int16, int32, or int64",
+                &token,
+            )),
             TokenType::Bool => {
                 self.consume();
                 Ok(Type::bool())
             }
-            TokenType::Float => {
-                self.consume();
-                Ok(Type::float())
+            TokenType::Float => Err(self.error_token(
+                "Use an explicit float width such as float16, float32, or float64",
+                &token,
+            )),
+            TokenType::Ident => {
+                let name = expect_string(&token)?;
+                match name {
+                    "int16" => {
+                        self.consume();
+                        Ok(Type::int16())
+                    }
+                    "int32" => {
+                        self.consume();
+                        Ok(Type::int32())
+                    }
+                    "int64" => {
+                        self.consume();
+                        Ok(Type::int64())
+                    }
+                    "float16" => {
+                        self.consume();
+                        Ok(Type::float16())
+                    }
+                    "float32" => {
+                        self.consume();
+                        Ok(Type::float32())
+                    }
+                    "float64" => {
+                        self.consume();
+                        Ok(Type::float64())
+                    }
+                    _ => Err(self.error_token("Expected type", &token)),
+                }
             }
             TokenType::Tensor => {
                 self.consume();

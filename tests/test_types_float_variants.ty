@@ -1,0 +1,5 @@
+fn mix(a: float16, b: float64): float64:
+  return a + b
+
+layer model(x: tensor[float32], scale: float16): tensor[float32]:
+  return scale(x, scale)

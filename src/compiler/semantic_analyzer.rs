@@ -7,6 +7,16 @@ use crate::compiler::parser::{
 
 use std::collections::{BTreeMap, BTreeSet};
 
+const SUPPORTED_TENSOR_DTYPES: &[&str] = &[
+    "float16",
+    "float32",
+    "float64",
+    "bfloat16",
+    "int16",
+    "int32",
+    "int64",
+];
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Symbol {
     pub ty: Type,
@@ -102,6 +112,7 @@ impl SemanticAnalyzer {
             }
             let mut fields = BTreeMap::new();
             for field in &config.fields {
+                self.validate_declared_type(&field.ty, &config.span)?;
                 if fields.contains_key(&field.name) {
                     return Err(self.error_span(
                         &config.span,
@@ -118,6 +129,10 @@ impl SemanticAnalyzer {
     fn collect_layers(&mut self, program: &Program) -> Result<(), String> {
         let mut layer_names = BTreeSet::new();
         for layer in &program.layers {
+            self.validate_declared_type(&layer.return_type, &layer.span)?;
+            for arg in &layer.args {
+                self.validate_declared_type(&arg.ty, &layer.span)?;
+            }
             if !layer_names.insert(layer.name.clone()) {
                 return Err(self.error_span(&layer.span, &format!("Duplicate layer '{}'", layer.name)));
             }
@@ -142,6 +157,10 @@ impl SemanticAnalyzer {
 
     fn collect_functions(&mut self, program: &Program) -> Result<(), String> {
         for function in &program.functions {
+            self.validate_declared_type(&function.return_type, &function.span)?;
+            for arg in &function.args {
+                self.validate_declared_type(&arg.ty, &function.span)?;
+            }
             if self.functions.contains_key(&function.name) || self.layers.contains_key(&function.name) {
                 return Err(self.error_span(
                     &function.span,
@@ -197,6 +216,7 @@ impl SemanticAnalyzer {
                 self.analyze_expr(expr, program)?;
             }
             StmtKind::VarDecl(decl) => {
+                self.validate_declared_type(&decl.ty, &stmt.span)?;
                 if let Some(init) = &decl.init {
                     let init_type = self.analyze_expr(init, program)?;
                     if !self.is_compatible(&decl.ty, &init_type) {
@@ -430,9 +450,9 @@ impl SemanticAnalyzer {
                 } else if lhs_ty.base == TypeBase::Void || rhs_ty.base == TypeBase::Void {
                     Ok(Type::void())
                 } else if lhs_ty.base == TypeBase::Float || rhs_ty.base == TypeBase::Float {
-                    Ok(Type::float())
+                    Ok(merge_scalar_float_types(&lhs_ty, &rhs_ty))
                 } else if lhs_ty.base == TypeBase::Int && rhs_ty.base == TypeBase::Int {
-                    Ok(Type::int())
+                    Ok(merge_scalar_int_types(&lhs_ty, &rhs_ty))
                 } else {
                     Err(self.error_span(span, "Arithmetic operation has incompatible operand types"))
                 }
@@ -557,9 +577,9 @@ impl SemanticAnalyzer {
                         if lhs_ty.base == TypeBase::Tensor || rhs_ty.base == TypeBase::Tensor {
                             Ok(self.merge_tensor_types(&lhs_ty, &rhs_ty))
                         } else if lhs_ty.base == TypeBase::Float || rhs_ty.base == TypeBase::Float {
-                            Ok(Type::float())
+                            Ok(merge_scalar_float_types(&lhs_ty, &rhs_ty))
                         } else if lhs_ty.base == TypeBase::Int && rhs_ty.base == TypeBase::Int {
-                            Ok(Type::int())
+                            Ok(merge_scalar_int_types(&lhs_ty, &rhs_ty))
                         } else {
                             Err(self.error_span(&expr.span, "Arithmetic operation has incompatible operand types"))
                         }
@@ -940,6 +960,13 @@ impl SemanticAnalyzer {
         if target.base != source.base {
             return false;
         }
+        if (target.base == TypeBase::Float || target.base == TypeBase::Int)
+            && target.scalar_dtype.is_some()
+            && source.scalar_dtype.is_some()
+            && target.scalar_dtype != source.scalar_dtype
+        {
+            return false;
+        }
         if target.base == TypeBase::Tuple {
             if target.elements.len() != source.elements.len() {
                 return false;
@@ -992,6 +1019,44 @@ impl SemanticAnalyzer {
 
     fn error_span(&self, span: &SourceSpan, message: &str) -> String {
         format!("Semantic Error: {message} at {}:{}", span.line, span.column)
+    }
+
+    fn validate_declared_type(&self, ty: &Type, span: &SourceSpan) -> Result<(), String> {
+        match ty.base {
+            TypeBase::Int => {
+                if let Some(dtype) = &ty.scalar_dtype {
+                    if !matches!(dtype.as_str(), "int16" | "int32" | "int64") {
+                        return Err(self.error_span(span, &format!("Unsupported scalar integer type '{dtype}'")));
+                    }
+                }
+            }
+            TypeBase::Float => {
+                if let Some(dtype) = &ty.scalar_dtype {
+                    if !matches!(dtype.as_str(), "float16" | "float32" | "float64") {
+                        return Err(self.error_span(span, &format!("Unsupported scalar float type '{dtype}'")));
+                    }
+                }
+            }
+            TypeBase::Tensor => {
+                if let Some(dtype) = &ty.tensor_dtype {
+                    if !SUPPORTED_TENSOR_DTYPES.contains(&dtype.as_str()) {
+                        return Err(self.error_span(span, &format!("Unsupported tensor dtype '{dtype}'")));
+                    }
+                }
+            }
+            TypeBase::Tuple => {
+                for element in &ty.elements {
+                    self.validate_declared_type(element, span)?;
+                }
+            }
+            TypeBase::Callable => {
+                if let Some(result) = &ty.callable_return {
+                    self.validate_declared_type(result, span)?;
+                }
+            }
+            _ => {}
+        }
+        Ok(())
     }
 }
 
@@ -1105,9 +1170,9 @@ fn count_stage_sites(expr: &Expr) -> i32 {
 
 pub fn type_to_string(ty: &Type) -> String {
     match ty.base {
-        TypeBase::Int => "int".to_string(),
+        TypeBase::Int => ty.scalar_dtype.clone().unwrap_or_else(|| "int".to_string()),
         TypeBase::Bool => "bool".to_string(),
-        TypeBase::Float => "float".to_string(),
+        TypeBase::Float => ty.scalar_dtype.clone().unwrap_or_else(|| "float".to_string()),
         TypeBase::Tensor => match (&ty.tensor_dtype, &ty.tensor_shape_expr) {
             (None, None) => "tensor".to_string(),
             (Some(dtype), None) => format!("tensor[{dtype}]"),
@@ -1132,6 +1197,38 @@ pub fn type_to_string(ty: &Type) -> String {
                 .unwrap_or_else(|| "void".to_string());
             format!("callable -> {inner}")
         }
+    }
+}
+
+fn merge_scalar_float_types(lhs: &Type, rhs: &Type) -> Type {
+    let rank = |ty: &Type| match ty.scalar_dtype.as_deref() {
+        Some("float64") => 3,
+        Some("float32") | None => 2,
+        Some("float16") => 1,
+        _ => 2,
+    };
+
+    match rank(lhs).max(rank(rhs)) {
+        3 => Type::float64(),
+        1 => Type::float16(),
+        _ if lhs.scalar_dtype.is_none() && rhs.scalar_dtype.is_none() => Type::float(),
+        _ => Type::float32(),
+    }
+}
+
+fn merge_scalar_int_types(lhs: &Type, rhs: &Type) -> Type {
+    let rank = |ty: &Type| match ty.scalar_dtype.as_deref() {
+        Some("int64") => 3,
+        Some("int32") | None => 2,
+        Some("int16") => 1,
+        _ => 2,
+    };
+
+    match rank(lhs).max(rank(rhs)) {
+        3 => Type::int64(),
+        1 => Type::int16(),
+        _ if lhs.scalar_dtype.is_none() && rhs.scalar_dtype.is_none() => Type::int(),
+        _ => Type::int32(),
     }
 }
 

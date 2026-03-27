@@ -110,11 +110,28 @@ The language is progressively typed.
 Surface types may be omitted, but the compiler should resolve enough semantic structure before
 lowering.
 
+Scalar integer types:
+
+- `int16`
+- `int32`
+- `int64`
+
 Tensor types support richer metadata:
 
 - `tensor`
 - `tensor[float16]`
+- `tensor[float32]`
+- `tensor[float64]`
+- `tensor[int16]`
+- `tensor[int32]`
+- `tensor[int64]`
 - `tensor[float16, TransformerDims[:2]]`
+
+Scalar float types:
+
+- `float16`
+- `float32`
+- `float64`
 
 ## Callable Layer Constructors
 

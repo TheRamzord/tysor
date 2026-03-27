@@ -1,7 +1,7 @@
-fn add(a: int, b: int = 0):
+fn add(a: int32, b: int32 = 0):
   return a + b
 
-layer Linear(x, out_features: int, bias: bool = true):
+layer Linear(x, out_features: int32, bias: bool = true):
   w = linear(out_features)
   return x -> w()
 

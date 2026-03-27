@@ -1,8 +1,8 @@
 config model_params:
-  dim : int = 512
-  n_heads : int = 8
+  dim : int32 = 512
+  n_heads : int32 = 8
   use_bias : bool = true
-  learning_rate : float = 0.001
+  learning_rate : float32 = 0.001
 
 train gpt:
   batch_size = 32

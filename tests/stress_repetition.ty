@@ -1,5 +1,5 @@
 config settings:
-  depth: int = 12
+  depth: int32 = 12
 
 layer Block(x):
   return x -> inner()

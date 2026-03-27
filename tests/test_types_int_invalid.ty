@@ -1,0 +1,2 @@
+fn bad(a: int128): int128:
+  return a

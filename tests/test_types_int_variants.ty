@@ -1,0 +1,5 @@
+fn widen(a: int16, b: int64): int64:
+  return a + b
+
+fn keep(a: int32, b: int32): int32:
+  return a + b

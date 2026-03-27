@@ -315,6 +315,19 @@ fn build_command(
         test_file.display().to_string(),
     ];
 
+    if args.tokens {
+        cmd.push("--tokens".to_string());
+    }
+    if args.ast {
+        cmd.push("--ast".to_string());
+    }
+    if args.semantics {
+        cmd.push("--semantics".to_string());
+    }
+    if args.ir {
+        cmd.push("--ir".to_string());
+    }
+
     let name = test_file.file_name().and_then(|x| x.to_str()).unwrap_or_default();
     if args.run {
         cmd.push("--run".to_string());
