@@ -59,6 +59,7 @@ const METAL_SUPPORTED_TRAIN_TESTS: &[&str] = &[
     "test_train_backend_single.ty",
     "test_train_dropout.ty",
     "test_train_linear_bias.ty",
+    "test_train_pytorch_transformer.ty",
     "test_train_pytorch_transformer_mask.ty",
     "test_train_small_mlp.ty",
     "test_train_silu_mlp.ty",
@@ -204,6 +205,25 @@ fn parse_args() -> Result<Args, String> {
     }
 
     Ok(parsed)
+}
+
+fn default_requested_tests(args: &Args, backend: Backend) -> Vec<String> {
+    if !args.files.is_empty() || !args.file_flags.is_empty() {
+        return Vec::new();
+    }
+
+    if args.emit_pytorch {
+        return PYTORCH_SUPPORTED_TESTS.iter().map(|name| (*name).to_string()).collect();
+    }
+
+    match (backend, args.run, args.backward, args.train) {
+        (Backend::Metal, true, _, _) => METAL_SUPPORTED_RUNTIME_TESTS.iter().map(|name| (*name).to_string()).collect(),
+        (Backend::Metal, _, true, _) => METAL_SUPPORTED_BACKWARD_TESTS.iter().map(|name| (*name).to_string()).collect(),
+        (Backend::Metal, _, _, true) => METAL_SUPPORTED_TRAIN_TESTS.iter().map(|name| (*name).to_string()).collect(),
+        (Backend::PyTorch, true, _, _) => PYTORCH_SUPPORTED_RUNTIME_TESTS.iter().map(|name| (*name).to_string()).collect(),
+        (Backend::PyTorch, _, _, true) => PYTORCH_SUPPORTED_TRAIN_TESTS.iter().map(|name| (*name).to_string()).collect(),
+        _ => Vec::new(),
+    }
 }
 
 fn runtime_test_args() -> BTreeMap<&'static str, Vec<&'static str>> {
@@ -669,6 +689,7 @@ fn real_main() -> i32 {
 
     let mut requested = args.file_flags.clone();
     requested.extend(args.files.clone());
+    requested.extend(default_requested_tests(&args, backend));
     let tests = match resolve_test_files(&requested, &tests_dir, args.stress) {
         Ok(tests) => tests,
         Err(err) => {

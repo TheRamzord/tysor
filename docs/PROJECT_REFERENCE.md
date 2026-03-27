@@ -108,6 +108,21 @@ Run training fixtures:
 cargo run --bin run_tests -- --train test_train_small_mlp.ty test_train_silu_mlp.ty
 ```
 
+Run the supported Metal comparison suites:
+
+```sh
+cargo run --bin run_tests -- --run --backend metal --compare-cpu
+cargo run --bin run_tests -- --backward --backend metal --compare-cpu
+cargo run --bin run_tests -- --train --backend metal --compare-cpu
+```
+
+Metal runtime environment flags:
+
+```sh
+TYSOR_METAL_ALLOW_FALLBACK=1 cargo run -- tests/test_model_matmul_relu.ty --run --backend metal --shape x=2x3 --shape w=3x4
+TYSOR_METAL_REQUIRE_NATIVE=1 cargo run -- tests/test_model_matmul_relu.ty --run --backend metal --shape x=2x3 --shape w=3x4
+```
+
 ## Backends
 
 Supported backends:

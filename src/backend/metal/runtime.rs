@@ -23,6 +23,23 @@ use crate::runtime::tensor::{
 use std::collections::BTreeMap;
 use std::env;
 
+fn parse_env_flag(name: &str) -> bool {
+    env::var(name)
+        .map(|value| value != "0" && !value.is_empty())
+        .unwrap_or(false)
+}
+
+fn native_error_allows_fallback(error: &str) -> bool {
+    let lower = error.to_ascii_lowercase();
+    lower.contains("only available on macos")
+        || lower.contains("could not create a default device")
+        || lower.contains("metal device unavailable")
+        || lower.contains("metal unavailable")
+        || lower.contains("failed to create metal context")
+        || lower.contains("failed to compile metal source")
+        || lower.contains("native metal runtime unavailable")
+}
+
 #[derive(Debug, Clone, PartialEq)]
 enum HostValue {
     Int(i64),
@@ -327,19 +344,17 @@ pub fn execute_metal_module(
     options: &RuntimeRunOptions,
     parameters: Option<&BTreeMap<String, SimpleTensor>>,
 ) -> Result<GraphExecutionResult, String> {
-    let allow_fallback = env::var("TYSOR_METAL_ALLOW_FALLBACK")
-        .map(|value| value != "0" && !value.is_empty())
-        .unwrap_or(false);
-    let require_native = env::var("TYSOR_METAL_REQUIRE_NATIVE")
-        .map(|value| value != "0" && !value.is_empty())
-        .unwrap_or(false);
+    let allow_fallback = parse_env_flag("TYSOR_METAL_ALLOW_FALLBACK");
+    let require_native = parse_env_flag("TYSOR_METAL_REQUIRE_NATIVE");
     // Native Metal is preferred whenever it works. The fallback keeps the backend
     // usable in CI or on developer machines that cannot expose a default Metal device.
     match try_execute_metal_module_native(lowered, options, parameters) {
         Ok(execution) => return Ok(execution),
         Err(error) if require_native => return Err(format!("Native Metal execution required: {error}")),
-        Err(error) if cfg!(target_os = "macos") && !allow_fallback && !error.contains("could not create a default device") => {
-            return Err(format!("Native Metal execution failed: {error}. Set TYSOR_METAL_ALLOW_FALLBACK=1 to force the simulated fallback path."));
+        Err(error) if cfg!(target_os = "macos") && !allow_fallback && !native_error_allows_fallback(&error) => {
+            return Err(format!(
+                "Native Metal execution failed: {error}. Set TYSOR_METAL_ALLOW_FALLBACK=1 to force the simulated fallback path."
+            ));
         }
         Err(_) => {}
     }
